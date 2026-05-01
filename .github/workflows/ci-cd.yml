@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [ main ]
 
+# Granting the GITHUB_TOKEN permission to create and push Docker images
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   build-and-pack:
     runs-on: ubuntu-latest
@@ -20,14 +25,16 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
+      # 1. BUILD & TEST: Validates logic and generates the JAR
       - name: Build and Test
         run: mvn clean install
 
-      # NEW: This step converts the repository name to lowercase
+      # 2. NORMALIZE: Convert repository name to lowercase for Docker compliance
       - name: Lowercase Repository Name
         run: |
           echo "REPO_LOWER=${GITHUB_REPOSITORY,,}" >> ${GITHUB_ENV}
 
+      # 3. DOCKERIZE: Package and Push
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -43,7 +50,7 @@ jobs:
         with:
           context: .
           push: true
-          # UPDATED: Using the lowercase variable env.REPO_LOWER
+          # Using the lowercase REPO_LOWER to avoid the "denied" error
           tags: |
             ghcr.io/${{ env.REPO_LOWER }}/fees-engine-core:latest
             ghcr.io/${{ env.REPO_LOWER }}/fees-engine-core:${{ github.sha }}
